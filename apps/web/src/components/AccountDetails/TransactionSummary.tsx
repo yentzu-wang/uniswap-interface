@@ -234,9 +234,9 @@ function CreateV3PoolSummary({ info: { quoteCurrencyId, baseCurrencyId } }: { in
   )
 }
 
-function CollectFeesSummary({ info: { currencyId0, currencyId1 } }: { info: CollectFeesTransactionInfo }) {
-  const currency0 = useCurrency(currencyId0)
-  const currency1 = useCurrency(currencyId1)
+function CollectFeesSummary({ info: { token0CurrencyId, token1CurrencyId } }: { info: CollectFeesTransactionInfo }) {
+  const currency0 = useCurrency(token0CurrencyId)
+  const currency1 = useCurrency(token1CurrencyId)
 
   return (
     <Trans
@@ -421,6 +421,7 @@ function DecreaseLiquiditySummary({ info }: { info: DecreaseLiquidityTransaction
   )
 }
 
+/** @deprecated this is only used in the legacy LP flows. */
 export function TransactionSummary({ info }: { info: TransactionInfo }) {
   switch (info.type) {
     case TransactionType.ADD_LIQUIDITY_V3_POOL:
@@ -456,7 +457,7 @@ export function TransactionSummary({ info }: { info: TransactionInfo }) {
     case TransactionType.CREATE_V3_POOL:
       return <CreateV3PoolSummary info={info} />
 
-    case TransactionType.MIGRATE_LIQUIDITY_V3:
+    case TransactionType.MIGRATE_LIQUIDITY_V2_TO_V3:
       return <MigrateLiquidityToV3Summary info={info} />
 
     case TransactionType.COLLECT_FEES:
@@ -483,7 +484,9 @@ export function TransactionSummary({ info }: { info: TransactionInfo }) {
     case TransactionType.DECREASE_LIQUIDITY:
       return <DecreaseLiquiditySummary info={info} />
 
+    case TransactionType.CREATE_POSITION:
+    case TransactionType.MIGRATE_LIQUIDITY_V3_TO_V4:
     case TransactionType.BRIDGE:
-      return <></> // Bridging was launched after this code became deprecated
+      return <></> // These features were launched after this code became deprecated
   }
 }

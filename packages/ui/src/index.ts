@@ -34,6 +34,7 @@ export {
 } from 'tamagui'
 export type {
   Adapt,
+  AnchorProps,
   CircleProps,
   ColorTokens,
   GetProps,
@@ -47,11 +48,13 @@ export type {
   TamaguiElement,
   TamaguiProviderProps,
   ThemeKeys,
+  ThemeName,
   Tokens,
   ViewProps,
 } from 'tamagui'
 export { LinearGradient } from 'tamagui/linear-gradient'
 export * from 'ui/src/animations'
+export * from './components/InlineCard/InlineCard'
 export { QRCodeDisplay } from './components/QRCode/QRCodeDisplay'
 export * from './components/SegmentedControl/SegmentedControl'
 export { Unicon } from './components/Unicon'
@@ -64,7 +67,7 @@ export * from './components/checkbox'
 export type { GeneratedIcon, IconProps } from './components/factories/createIcon'
 export * from './components/input/utils'
 export { Flex, Inset, Separator, flexStyles, type FlexProps } from './components/layout'
-export { AdaptiveWebModal, WebBottomSheet } from './components/modal/AdaptiveWebModal'
+export { WebBottomSheet } from './components/modal/AdaptiveWebModal'
 export * from './components/radio/Radio'
 export { ClickableWithinGesture } from './components/swipeablecards/ClickableWithinGesture'
 export { SwipeableCardStack } from './components/swipeablecards/SwipeableCardStack'
@@ -72,13 +75,10 @@ export { Switch, type SwitchProps } from './components/switch/Switch'
 export * from './components/text'
 export { Tooltip } from './components/tooltip/Tooltip'
 export * from './components/touchable'
+export { MobileDeviceHeight } from './hooks/constants'
 export { useIsDarkMode } from './hooks/useIsDarkMode'
 export { useIsShortMobileDevice } from './hooks/useIsShortMobileDevice'
 export { useSporeColors, type DynamicColor } from './hooks/useSporeColors'
-// eslint-disable-next-line no-restricted-imports
-export { ImpactFeedbackStyle } from 'expo-haptics'
-export * from './components/InlineCard/InlineCard'
-export * from './utils/haptics/useHapticFeedback'
 
 // Theme
 export * from './styles/ScrollbarStyles'

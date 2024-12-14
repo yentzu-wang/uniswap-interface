@@ -11,6 +11,7 @@ import { LearnMoreLink } from 'uniswap/src/components/text/LearnMoreLink'
 import { MAX_AUTO_SLIPPAGE_TOLERANCE, MAX_CUSTOM_SLIPPAGE_TOLERANCE } from 'uniswap/src/constants/transactions'
 import { uniswapUrls } from 'uniswap/src/constants/urls'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import { useTransactionSettingsContext } from 'uniswap/src/features/transactions/settings/contexts/TransactionSettingsContext'
 import { useSwapFormContext } from 'uniswap/src/features/transactions/swap/contexts/SwapFormContext'
 import { SwapSettingConfig } from 'uniswap/src/features/transactions/swap/settings/configs/types'
 import { useSlippageSettings } from 'uniswap/src/features/transactions/swap/settings/useSlippageSettings'
@@ -25,8 +26,8 @@ export const Slippage: SwapSettingConfig = {
     const { t } = useTranslation()
     const { formatPercent } = useLocalizationContext()
     const { derivedSwapInfo } = useSwapFormContext()
+    const { autoSlippageTolerance, customSlippageTolerance } = useTransactionSettingsContext()
 
-    const { customSlippageTolerance, autoSlippageTolerance } = derivedSwapInfo
     const isCustomSlippage = !!customSlippageTolerance
     let currentSlippage = customSlippageTolerance ?? autoSlippageTolerance ?? MAX_AUTO_SLIPPAGE_TOLERANCE
     if (autoSlippageTolerance && currentSlippage === 0) {
@@ -122,7 +123,7 @@ export const Slippage: SwapSettingConfig = {
               p="$spacing16"
               style={inputAnimatedStyle}
             >
-              <TouchableArea hapticFeedback onPress={isBridgeTrade ? undefined : onPressAutoSlippage}>
+              <TouchableArea onPress={isBridgeTrade ? undefined : onPressAutoSlippage}>
                 <Text color="$accent1" variant="buttonLabel2">
                   {t('swap.settings.slippage.control.auto')}
                 </Text>
@@ -189,7 +190,7 @@ function SlippageMessage({
   const slippageTolerancePercent = slippageToleranceToPercent(slippageTolerance)
 
   if (inputWarning) {
-    return <WarningMessage showAlert text={inputWarning} color="$DEP_accentWarning" />
+    return <WarningMessage showAlert text={inputWarning} color="$statusWarning" />
   }
 
   return trade ? (

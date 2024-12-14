@@ -142,7 +142,7 @@ export const networkColors = {
     light: '#222222',
     dark: '#FFFFFF',
   },
-  astrochain: {
+  unichain: {
     light: '#fc0fa4',
     dark: '#fc0fa4',
   },
@@ -290,6 +290,7 @@ export const colorsLight = {
   statusCritical2: sporeLight.statusCritical2,
   statusCritical2Hovered: sporeLight.statusCritical2Hovered,
   statusWarning: sporeLight.statusWarning,
+  statusWarning2: sporeLight.statusWarning2,
 
   DEP_backgroundBranded: '#FCF7FF',
   DEP_backgroundOverlay: opacifyRaw(60, colors.white),
@@ -324,7 +325,7 @@ export const colorsLight = {
 
   // Testnets
   chain_11155111: networkColors.ethereum.light,
-  chain_1301: networkColors.astrochain.light,
+  chain_1301: networkColors.unichain.light,
 }
 
 export type ColorKeys = keyof typeof colorsLight
@@ -371,6 +372,7 @@ export const colorsDark = {
   statusCritical2: sporeDark.statusCritical2,
   statusCritical2Hovered: sporeDark.statusCritical2Hovered,
   statusWarning: sporeDark.statusWarning,
+  statusWarning2: sporeDark.statusWarning2,
 
   DEP_backgroundBranded: '#100D1C',
   DEP_backgroundOverlay: opacifyRaw(10, colors.white),
@@ -406,5 +408,5 @@ export const colorsDark = {
 
   // Testnets
   chain_11155111: networkColors.ethereum.dark,
-  chain_1301: networkColors.astrochain.dark,
+  chain_1301: networkColors.unichain.dark,
 }

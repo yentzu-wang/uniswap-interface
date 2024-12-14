@@ -13,7 +13,7 @@ import styled, { css } from 'lib/styled-components'
 import { useReducer } from 'react'
 import { ClickableStyle, ThemedText } from 'theme/components'
 import { flexColumnNoWrap } from 'theme/styles'
-import { Text } from 'ui/src'
+import { Flex, Text } from 'ui/src'
 import { AccountCTAsExperimentGroup, Experiments } from 'uniswap/src/features/gating/experiments'
 import { useExperimentGroupName } from 'uniswap/src/features/gating/hooks'
 import { Trans, useTranslation } from 'uniswap/src/i18n'
@@ -73,7 +73,7 @@ const StyledCollapsedIcon = styled(CollapsedIcon)`
 export default function WalletModal() {
   const { t } = useTranslation()
   const showMoonpayText = useShowMoonpayText()
-  const connectors = useOrderedConnections(true /** exclude uniswap connectors since they're shown separately */)
+  const connectors = useOrderedConnections()
   const isUniExtensionAvailable = useIsUniExtensionAvailable()
   const [showOtherWallets, toggleShowOtherWallets] = useReducer((s) => !s, true)
 
@@ -82,6 +82,7 @@ export default function WalletModal() {
 
   return (
     <Wrapper data-testid="wallet-modal" isUniExtensionAvailable={isUniExtensionAvailable}>
+      <Flex />
       <ConnectionErrorView />
       <AutoRow justify="space-between" width="100%">
         <Text variant="subheading2">

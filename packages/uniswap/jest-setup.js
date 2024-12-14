@@ -10,6 +10,15 @@ jest.mock('react-native-localize', () => mockRNLocalize)
 
 jest.mock('uniswap/src/features/language/LocalizationContext', () => mockLocalizationContext({}))
 
+jest.mock('uniswap/src/features/transactions/settings/contexts/TransactionSettingsContext', () => {
+  return {
+    useTransactionSettingsContext: () => ({
+      customDeadline: 20,
+      customSlippage: 0.5,
+    })
+  }
+})
+
 // Use native modal
 jest.mock('uniswap/src/components/modals/Modal', () => {
   return jest.requireActual('uniswap/src/components/modals/Modal.native.tsx')

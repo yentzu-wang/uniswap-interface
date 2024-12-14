@@ -7,10 +7,13 @@ import { useCallback } from 'react'
 import { useModalIsOpen, useOpenModal, useToggleModal } from 'state/application/hooks'
 import { ApplicationModal } from 'state/application/reducer'
 import { ThemedText } from 'theme/components'
-import { AdaptiveWebModal, Flex, QRCodeDisplay, Text, useSporeColors } from 'ui/src'
+import { Flex, QRCodeDisplay, Text, useSporeColors } from 'ui/src'
+import { Modal } from 'uniswap/src/components/modals/Modal'
 import { NetworkLogos } from 'uniswap/src/components/network/NetworkLogos'
 import { useAddressColorProps } from 'uniswap/src/features/address/color'
+import { useOrderedChainIds } from 'uniswap/src/features/chains/hooks/useOrderedChainIds'
 import { SUPPORTED_CHAIN_IDS } from 'uniswap/src/features/chains/types'
+import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { useUnitagByAddress } from 'uniswap/src/features/unitags/hooks'
 import { Trans } from 'uniswap/src/i18n'
 
@@ -26,6 +29,7 @@ export function AddressQRModal({ accountAddress }: { accountAddress: Address }) 
   const { unitag } = useUnitagByAddress(accountAddress)
   const hasSecondaryIdentifier = ENSName || unitag?.username
   const addressColor = useAddressColorProps(accountAddress)
+  const orderedChainIds = useOrderedChainIds(SUPPORTED_CHAIN_IDS)
 
   const goBack = useCallback(() => {
     toggleModal()
@@ -33,7 +37,7 @@ export function AddressQRModal({ accountAddress }: { accountAddress: Address }) 
   }, [toggleModal, openReceiveCryptoModal])
 
   return (
-    <AdaptiveWebModal isOpen={isOpen} onClose={toggleModal} width={420}>
+    <Modal isModalOpen={isOpen} onClose={toggleModal} maxWidth={420} name={ModalName.AddressQR}>
       <Flex pb="$spacing16" gap="$spacing24">
         <GetHelpHeader goBack={goBack} closeModal={toggleModal} />
         <Flex gap="$spacing12">
@@ -56,7 +60,6 @@ export function AddressQRModal({ accountAddress }: { accountAddress: Address }) 
             color={addressColor}
             containerBackgroundColor={colors.surface1.val}
             size={QR_CODE_SIZE}
-            eyeSize={180}
             encodedValue={accountAddress!}
           >
             <Flex
@@ -70,14 +73,11 @@ export function AddressQRModal({ accountAddress }: { accountAddress: Address }) 
             </Flex>
           </QRCodeDisplay>
           <Text color="$neutral2" lineHeight={20} textAlign="center" variant="body3">
-            <Trans
-              i18nKey="qrScanner.wallet.title"
-              values={{ numOfNetworks: Object.keys(SUPPORTED_CHAIN_IDS).length }}
-            />
+            <Trans i18nKey="qrScanner.wallet.title" values={{ numOfNetworks: Object.keys(orderedChainIds).length }} />
           </Text>
-          <NetworkLogos chains={SUPPORTED_CHAIN_IDS} />
+          <NetworkLogos chains={orderedChainIds} />
         </Flex>
       </Flex>
-    </AdaptiveWebModal>
+    </Modal>
   )
 }

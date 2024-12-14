@@ -1,7 +1,9 @@
 /* eslint-disable consistent-return */
-import { Currency, NativeCurrency, Percent } from '@uniswap/sdk-core'
+import { Currency, NativeCurrency } from '@uniswap/sdk-core'
 import { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
+import { ColorTokens } from 'ui/src'
+import { getAlertColor } from 'uniswap/src/components/modals/WarningModal/getAlertColor'
 import { WarningSeverity } from 'uniswap/src/components/modals/WarningModal/types'
 import { ProtectionResult } from 'uniswap/src/data/graphql/uniswap-data-api/__generated__/types-and-hooks'
 import { AttackType, CurrencyInfo, TokenList } from 'uniswap/src/features/dataApi/types'
@@ -26,13 +28,27 @@ export const TOKEN_PROTECTION_FOT_HONEYPOT_BREAKPOINT = 100
 export const TOKEN_PROTECTION_FOT_HIGH_FEE_BREAKPOINT = 80
 export const TOKEN_PROTECTION_FOT_FEE_BREAKPOINT = 5
 
-export function getFeeOnTransfer(currency?: Currency): number {
+export function getFeeOnTransfer(currency?: Currency): {
+  buyFeePercent: number
+  sellFeePercent: number
+  maxFeePercent: number
+} {
   if (!currency || currency.isNative) {
-    return 0
+    return {
+      buyFeePercent: 0,
+      sellFeePercent: 0,
+      maxFeePercent: 0,
+    }
   }
-  const sellFeeBps = currency.sellFeeBps?.toNumber() ?? 0
-  const buyFeeBps = currency.buyFeeBps?.toNumber() ?? 0
-  return Math.max(sellFeeBps, buyFeeBps) / 100
+  const sellFeeBps = (currency.sellFeeBps?.toNumber() ?? 0) / 100
+  const buyFeeBps = (currency.buyFeeBps?.toNumber() ?? 0) / 100
+
+  // Returns the percent (i.e. 5.1 for 5.1%)
+  return {
+    buyFeePercent: buyFeeBps,
+    sellFeePercent: sellFeeBps,
+    maxFeePercent: Math.max(sellFeeBps, buyFeeBps),
+  }
 }
 
 // eslint-disable-next-line complexity
@@ -47,7 +63,7 @@ export function getTokenProtectionWarning(currencyInfo?: Maybe<CurrencyInfo>): T
     return TokenProtectionWarning.None
   }
 
-  const feeOnTransfer = getFeeOnTransfer(currency)
+  const { maxFeePercent: feeOnTransfer } = getFeeOnTransfer(currency)
 
   // prioritize high > medium > low warning levels
   if (safetyInfo.tokenList === TokenList.Blocked) {
@@ -67,10 +83,7 @@ export function getTokenProtectionWarning(currencyInfo?: Maybe<CurrencyInfo>): T
     return TokenProtectionWarning.MaliciousImpersonator
   } else if (feeOnTransfer >= TOKEN_PROTECTION_FOT_FEE_BREAKPOINT) {
     return TokenProtectionWarning.FotHigh
-  } else if (
-    (protectionResult === ProtectionResult.Malicious || protectionResult === ProtectionResult.Spam) &&
-    attackType === AttackType.Other
-  ) {
+  } else if (protectionResult === ProtectionResult.Malicious && attackType === AttackType.Other) {
     return TokenProtectionWarning.MaliciousGeneral
   } else if (protectionResult === ProtectionResult.Spam && attackType === AttackType.Airdrop) {
     return TokenProtectionWarning.SpamAirdrop
@@ -92,18 +105,17 @@ export function getIsFeeRelatedWarning(tokenProtectionWarning?: TokenProtectionW
   )
 }
 
-export function getFeeWarning(fee: Percent): TokenProtectionWarning {
+export function getFeeWarning(feePercent: number): TokenProtectionWarning {
   // WarningSeverity for styling. Same logic as getTokenWarningSeverity but without non-fee-related cases.
   // If fee >= 5% then HIGH, else 0% < fee < 5% then MEDIUM, else NONE
-  const feeInt = parseFloat(fee.toFixed())
   let tokenProtectionWarning = TokenProtectionWarning.None
-  if (feeInt >= TOKEN_PROTECTION_FOT_HONEYPOT_BREAKPOINT) {
+  if (feePercent >= TOKEN_PROTECTION_FOT_HONEYPOT_BREAKPOINT) {
     tokenProtectionWarning = TokenProtectionWarning.MaliciousHoneypot
-  } else if (feeInt >= TOKEN_PROTECTION_FOT_HIGH_FEE_BREAKPOINT) {
+  } else if (feePercent >= TOKEN_PROTECTION_FOT_HIGH_FEE_BREAKPOINT) {
     tokenProtectionWarning = TokenProtectionWarning.FotVeryHigh
-  } else if (feeInt >= TOKEN_PROTECTION_FOT_FEE_BREAKPOINT) {
+  } else if (feePercent >= TOKEN_PROTECTION_FOT_FEE_BREAKPOINT) {
     tokenProtectionWarning = TokenProtectionWarning.FotHigh
-  } else if (feeInt > 0) {
+  } else if (feePercent > 0) {
     tokenProtectionWarning = TokenProtectionWarning.FotLow
   }
   return tokenProtectionWarning
@@ -195,17 +207,19 @@ export function getModalHeaderText({
           })
         : t('token.safety.blocked.title.tokenNotAvailable', { tokenSymbol: tokenSymbol0 })
     case TokenProtectionWarning.MaliciousHoneypot:
-      return t('token.safety.warning.honeypot.title')
-    case TokenProtectionWarning.MaliciousImpersonator:
-    case TokenProtectionWarning.MaliciousGeneral:
+      return t('token.safety.warning.sellFee100.title')
     case TokenProtectionWarning.FotVeryHigh:
+      return t('token.safety.warning.fotVeryHigh.title')
+    case TokenProtectionWarning.MaliciousImpersonator:
+      return t('token.safety.warning.impersonator.title')
+    case TokenProtectionWarning.FotHigh:
+      return t('token.safety.warning.fotHigh.title')
+    case TokenProtectionWarning.MaliciousGeneral:
       return t('token.safety.warning.malicious.title')
     case TokenProtectionWarning.SpamAirdrop:
       return t('token.safety.warning.spam.title')
-    case TokenProtectionWarning.FotHigh:
-      return t('token.safety.warning.tokenChargesHighFee.title', { tokenSymbol: tokenSymbol0 })
     case TokenProtectionWarning.FotLow:
-      return t('token.safety.warning.tokenChargesFee.title', { tokenSymbol: tokenSymbol0 })
+      return t('token.safety.warning.fotLow.title')
     case TokenProtectionWarning.NonDefault:
       return t('token.safety.warning.alwaysDoYourResearch')
     case TokenProtectionWarning.None:
@@ -221,12 +235,13 @@ export function useModalSubtitleText(currencyInfo0: CurrencyInfo, currencyInfo1?
   const { t } = useTranslation()
   const { formatPercent } = useLocalizationContext()
   const tokenProtectionWarning = getTokenProtectionWarning(currencyInfo0)
+  const { buyFeePercent, sellFeePercent } = getFeeOnTransfer(currencyInfo0.currency)
   return getModalSubtitleText({
     t,
     tokenProtectionWarning,
     tokenSymbol: currencyInfo0.currency.symbol,
-    tokenList: currencyInfo0.safetyInfo?.tokenList,
-    feePercent: getFeeOnTransfer(currencyInfo0.currency),
+    buyFeePercent,
+    sellFeePercent,
     shouldHavePluralTreatment,
     formatPercent,
   })
@@ -236,16 +251,16 @@ export function getModalSubtitleText({
   t,
   tokenProtectionWarning,
   tokenSymbol,
-  tokenList,
-  feePercent,
+  buyFeePercent,
+  sellFeePercent,
   shouldHavePluralTreatment,
   formatPercent,
 }: {
   t: TFunction
   tokenProtectionWarning: TokenProtectionWarning | undefined
   tokenSymbol?: string
-  tokenList?: TokenList
-  feePercent: number
+  buyFeePercent: number
+  sellFeePercent: number
   shouldHavePluralTreatment?: boolean
   formatPercent: (value: Maybe<string | number>) => string
 }): string | null {
@@ -253,24 +268,16 @@ export function getModalSubtitleText({
     return null
   }
 
-  const formattedFeePercent = formatPercent(feePercent)
+  const formattedBuyFeePercent = buyFeePercent > 0 ? formatPercent(buyFeePercent) : undefined
+  const formattedSellFeePercent = sellFeePercent > 0 ? formatPercent(sellFeePercent) : undefined
   const warningCopy = getModalSubtitleTokenWarningText({
     t,
     tokenProtectionWarning,
     tokenSymbol,
-    formattedFeePercent,
+    formattedBuyFeePercent,
+    formattedSellFeePercent,
     shouldHavePluralTreatment,
   })
-
-  // if warningCopy is not null and is not already NonDefault warning, then add extra copy if it's a non-default list token
-  const shouldAddNonDefaultCopy =
-    tokenProtectionWarning !== TokenProtectionWarning.NonDefault && tokenList === TokenList.NonDefault && warningCopy
-  if (shouldAddNonDefaultCopy) {
-    const nonDefaultCopy = shouldHavePluralTreatment
-      ? t('token.safety.warning.medium.heading.default_other_also')
-      : t('token.safety.warning.medium.heading.default_one_also')
-    return warningCopy + ' ' + nonDefaultCopy
-  }
   return warningCopy
 }
 
@@ -278,52 +285,64 @@ export function getModalSubtitleTokenWarningText({
   t,
   tokenProtectionWarning,
   tokenSymbol,
-  formattedFeePercent,
+  formattedBuyFeePercent,
+  formattedSellFeePercent,
   shouldHavePluralTreatment,
 }: {
   t: TFunction
   tokenProtectionWarning: TokenProtectionWarning
   tokenSymbol?: string
-  formattedFeePercent?: string
+  formattedBuyFeePercent?: string
+  formattedSellFeePercent?: string
   shouldHavePluralTreatment?: boolean
 }): string | null {
   switch (tokenProtectionWarning) {
     case TokenProtectionWarning.Blocked:
-      return t('token.safety.warning.notAvailableToTrade') + '.'
+      return t('token.safetyLevel.blocked.message')
     case TokenProtectionWarning.MaliciousHoneypot:
       return t('token.safety.warning.honeypot.message', { tokenSymbol })
-    case TokenProtectionWarning.MaliciousImpersonator:
-      return (
-        t('token.safety.warning.malicious.impersonator.message', { tokenSymbol }) +
-        ' ' +
-        t('token.safety.warning.doYourOwnResearch')
-      )
-    case TokenProtectionWarning.SpamAirdrop:
-      return t('token.safety.warning.spam.message', { tokenSymbol }) + ' ' + t('token.safety.warning.doYourOwnResearch')
     case TokenProtectionWarning.MaliciousGeneral:
       return (
         t('token.safety.warning.malicious.general.message', { tokenSymbol }) +
         ' ' +
         t('token.safety.warning.doYourOwnResearch')
       )
+    case TokenProtectionWarning.MaliciousImpersonator:
+      return t('token.safety.warning.malicious.impersonator.message', { tokenSymbol })
+    case TokenProtectionWarning.SpamAirdrop:
+      return t('token.safety.warning.spam.message', { tokenSymbol }) + ' ' + t('token.safety.warning.doYourOwnResearch')
     case TokenProtectionWarning.FotVeryHigh:
     case TokenProtectionWarning.FotHigh:
+    case TokenProtectionWarning.FotLow: {
+      const feePercentCopy =
+        !!formattedBuyFeePercent && !!formattedSellFeePercent
+          ? t('token.safety.warning.tokenChargesFee.both.message', {
+              tokenSymbol,
+              buyFeePercent: formattedBuyFeePercent,
+              sellFeePercent: formattedSellFeePercent,
+            })
+          : formattedBuyFeePercent
+            ? t('token.safety.warning.tokenChargesFee.buy.message', {
+                tokenSymbol,
+                feePercent: formattedBuyFeePercent,
+              })
+            : t('token.safety.warning.tokenChargesFee.sell.message', {
+                tokenSymbol,
+                feePercent: formattedSellFeePercent,
+              })
       return (
-        t('token.safety.warning.tokenChargesFee.percent.message', { tokenSymbol, feePercent: formattedFeePercent }) +
+        feePercentCopy +
+        ' ' +
+        t('token.safety.warning.mayResultInLoss') +
         ' ' +
         t('token.safety.fees.uniswapLabsDoesNotReceive')
       )
-    case TokenProtectionWarning.FotLow:
-      return (
-        t('token.safety.warning.tokenChargesFee.message', { tokenSymbol }) +
-        ' ' +
-        t('token.safety.fees.uniswapLabsDoesNotReceive')
-      )
+    }
     case TokenProtectionWarning.NonDefault:
       if (shouldHavePluralTreatment) {
         return t('token.safetyLevel.medium.message.plural')
       }
-      return t('token.safetyLevel.medium.message')
+      return t('token.safety.warning.medium.heading.named', { tokenSymbol })
     case TokenProtectionWarning.None:
       return null
   }
@@ -342,13 +361,15 @@ export function useTokenWarningCardText(currencyInfo: Maybe<CurrencyInfo>): {
     }
   }
   const tokenProtectionWarning = getTokenProtectionWarning(currencyInfo)
+  const { buyFeePercent, sellFeePercent } = getFeeOnTransfer(currencyInfo.currency)
   return {
     heading: getCardHeaderText({ t, tokenProtectionWarning }),
     description: getCardSubtitleText({
       t,
       tokenProtectionWarning,
       tokenSymbol: currencyInfo.currency.symbol,
-      feePercent: getFeeOnTransfer(currencyInfo.currency),
+      buyFeePercent,
+      sellFeePercent,
       formatPercent,
     }),
   }
@@ -362,22 +383,23 @@ export function getCardHeaderText({
   tokenProtectionWarning: TokenProtectionWarning
 }): string | null {
   switch (tokenProtectionWarning) {
-    case TokenProtectionWarning.Blocked:
-      return t('token.safetyLevel.blocked.header')
     case TokenProtectionWarning.MaliciousHoneypot:
       return t('token.safety.warning.honeypot.title')
-    case TokenProtectionWarning.MaliciousImpersonator:
-    case TokenProtectionWarning.MaliciousGeneral:
     case TokenProtectionWarning.FotVeryHigh:
+      return t('token.safety.warning.fotVeryHigh.title')
+    case TokenProtectionWarning.MaliciousImpersonator:
+      return t('token.safety.warning.impersonator.title')
+    case TokenProtectionWarning.FotHigh:
+      return t('token.safety.warning.fotHigh.title')
+    case TokenProtectionWarning.MaliciousGeneral:
       return t('token.safety.warning.malicious.title')
     case TokenProtectionWarning.SpamAirdrop:
       return t('token.safety.warning.spam.title')
-    case TokenProtectionWarning.FotHigh:
-      return t('token.safety.warning.highFeeDetected.title')
     case TokenProtectionWarning.FotLow:
-      return t('token.safety.warning.feeDetected.title')
+      return t('token.safety.warning.fotLow.title')
     case TokenProtectionWarning.NonDefault:
     case TokenProtectionWarning.None:
+    default:
       return null
   }
 }
@@ -386,22 +408,26 @@ export function getCardSubtitleText({
   t,
   tokenProtectionWarning,
   tokenSymbol,
-  feePercent,
+  buyFeePercent,
+  sellFeePercent,
   formatPercent,
 }: {
   t: TFunction
   tokenProtectionWarning: TokenProtectionWarning
   tokenSymbol?: string
-  feePercent: number
+  buyFeePercent: number
+  sellFeePercent: number
   formatPercent: (value: Maybe<string | number>) => string
 }): string | null {
-  const formattedFeePercent: string = formatPercent(feePercent)
+  const formattedBuyFeePercent = buyFeePercent > 0 ? formatPercent(buyFeePercent) : undefined
+  const formattedSellFeePercent = sellFeePercent > 0 ? formatPercent(sellFeePercent) : undefined
   switch (tokenProtectionWarning) {
     case TokenProtectionWarning.Blocked:
       return isInterface
         ? t('token.safety.warning.blocked.description.default_one')
         : t('token.safetyLevel.blocked.message')
     case TokenProtectionWarning.MaliciousHoneypot:
+      return t('token.safety.warning.sellFee100.message', { tokenSymbol })
     case TokenProtectionWarning.MaliciousGeneral:
       return t('token.safety.warning.malicious.general.message', { tokenSymbol })
     case TokenProtectionWarning.MaliciousImpersonator:
@@ -410,11 +436,35 @@ export function getCardSubtitleText({
       return t('token.safety.warning.spam.message', { tokenSymbol })
     case TokenProtectionWarning.FotVeryHigh:
     case TokenProtectionWarning.FotHigh:
-    case TokenProtectionWarning.FotLow:
-      return t('token.safety.warning.tokenChargesFee.percent.message', { tokenSymbol, feePercent: formattedFeePercent })
+    case TokenProtectionWarning.FotLow: {
+      const feePercentCopy =
+        !!formattedBuyFeePercent && !!formattedSellFeePercent
+          ? t('token.safety.warning.tokenChargesFee.both.message', {
+              tokenSymbol,
+              buyFeePercent: formattedBuyFeePercent,
+              sellFeePercent: formattedSellFeePercent,
+            })
+          : formattedBuyFeePercent
+            ? t('token.safety.warning.tokenChargesFee.buy.message', {
+                tokenSymbol,
+                feePercent: formattedBuyFeePercent,
+              })
+            : t('token.safety.warning.tokenChargesFee.sell.message', {
+                tokenSymbol,
+                feePercent: formattedSellFeePercent,
+              })
+      return feePercentCopy
+    }
     case TokenProtectionWarning.NonDefault:
       return t('token.safety.warning.medium.heading.named', { tokenSymbol })
     case TokenProtectionWarning.None:
       return null
   }
+}
+
+export function getFeeColor(feePercent: number): ColorTokens {
+  const tokenProtectionWarning = getFeeWarning(feePercent)
+  const severity = getSeverityFromTokenProtectionWarning(tokenProtectionWarning)
+  const { headerText: textColor } = getAlertColor(severity)
+  return textColor
 }

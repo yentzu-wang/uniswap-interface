@@ -1,23 +1,11 @@
 /* eslint-disable complexity */
-/* eslint-disable max-lines */
 import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
-import {
-  RefObject,
-  forwardRef,
-  memo,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { RefObject, forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react'
 // eslint-disable-next-line no-restricted-imports -- type imports are safe
 import type { NativeSyntheticEvent, TextInput, TextInputProps, TextInputSelectionChangeEventData } from 'react-native'
 import { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
 import { Flex, FlexProps, Text, TouchableArea, isWeb, useIsShortMobileDevice, useSporeColors } from 'ui/src'
 import { errorShakeAnimation } from 'ui/src/animations/errorShakeAnimation'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
 import { useDynamicFontSizing } from 'ui/src/hooks/useDynamicFontSizing'
 import { fonts, spacing } from 'ui/src/theme'
@@ -26,7 +14,7 @@ import { MaxAmountButton } from 'uniswap/src/components/CurrencyInputPanel/MaxAm
 import { SelectTokenButton } from 'uniswap/src/components/CurrencyInputPanel/SelectTokenButton'
 import { MAX_FIAT_INPUT_DECIMALS } from 'uniswap/src/constants/transactions'
 import { useAccountMeta } from 'uniswap/src/contexts/UniswapContext'
-import { useEnabledChains } from 'uniswap/src/features/chains/hooks'
+import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { useAppFiatCurrencyInfo } from 'uniswap/src/features/fiatCurrency/hooks'
 import { FeatureFlags } from 'uniswap/src/features/gating/flags'
@@ -239,7 +227,6 @@ export const CurrencyInputPanel = memo(
 
       return (
         <TouchableArea
-          hapticFeedback
           disabled={enableInputOnly}
           disabledStyle={{
             cursor: 'default',
@@ -266,7 +253,7 @@ export const CurrencyInputPanel = memo(
                   color={showInsufficientBalanceWarning ? '$statusCritical' : color}
                   fontSize={fontSize}
                   lineHeight={lineHeight}
-                  mr="$spacing4"
+                  mr={isWeb && '$spacing2'}
                 >
                   {fiatCurrencySymbol}
                 </Text>
@@ -326,7 +313,7 @@ export const CurrencyInputPanel = memo(
                     />
                   </Flex>
                 ) : (
-                  <TouchableArea hapticFeedback onPress={onShowTokenSelector}>
+                  <TouchableArea onPress={onShowTokenSelector}>
                     <Text color="$neutral3" fontSize={fontSize} variant="heading2" style={{ lineHeight: fontSize }}>
                       0
                     </Text>
@@ -356,9 +343,8 @@ export const CurrencyInputPanel = memo(
                   )}
                 </TouchableArea>
                 <Flex row centered gap="$spacing4" justifyContent="flex-end">
-                  {showInsufficientBalanceWarning && <AlertTriangleFilled color="$neutral2" size="$icon.16" />}
                   {!hideCurrencyBalance && (
-                    <Text color="$neutral2" variant="body3">
+                    <Text color={showInsufficientBalanceWarning ? '$statusCritical' : '$neutral2'} variant="body3">
                       {formatCurrencyAmount({
                         value: currencyBalance,
                         type: NumberType.TokenNonTx,
@@ -405,63 +391,33 @@ function useIndicativeTextDisplay({
   value,
   valueIsIndicative,
 }: CurrentInputPanelProps): PanelTextDisplay {
-  const [display, setDisplay] = useState<PanelTextDisplay>({ value, color: '$neutral1' })
-  const [displayUsdValue, setDisplayUsdValue] = useState<Maybe<CurrencyAmount<Currency>>>(usdValue)
-
-  const prevDisplay = usePrevious(display)
-
-  /** Show interim state (old value in neutral2) for 200ms before showing the final state. */
-  const handleIndicativeTransition = useCallback((interimState: PanelTextDisplay, finalState: PanelTextDisplay) => {
-    // If the value has changed again since the delay, this timeout should no-op
-    setTimeout(() => setDisplay((prev) => (prev !== interimState ? prev : finalState)), 200)
-  }, [])
-
+  const lastDisplayRef = useRef<PanelTextDisplay>({ value, color: '$neutral3', usdValue })
   const hasInput = Boolean(isLoading || currencyAmount)
-  const valueChanged = usePrevious(value) !== value
-  const valueWasIndicative = usePrevious(valueIsIndicative)
+
+  // Clear the lastDisplayRef if input is cleared, so that it is not used upon subsequent input
   useEffect(() => {
-    // Display should only be updated if the value has changed and it's not undefined awaiting a new quote.
-    if (!valueChanged) {
-      return
+    if (!hasInput) {
+      lastDisplayRef.current = { value: undefined, color: '$neutral3' }
+    }
+  }, [hasInput])
+
+  return useMemo(() => {
+    // Ignore all indicative treatment when the field is focused
+    if (focus) {
+      return { value, color: '$neutral1', usdValue }
     }
 
-    if (!value && hasInput) {
-      setDisplay({ value, color: '$neutral1' })
-      return
+    if (!value) {
+      return hasInput ? lastDisplayRef.current : { value, color: '$neutral3' }
     }
 
-    // Handle transition from indicative to full quote.
-    if (valueWasIndicative && !valueIsIndicative) {
-      setDisplay((prev) => ({ ...prev, color: '$neutral2' }))
-      handleIndicativeTransition({ value: prevDisplay?.value, color: '$neutral2' }, display)
-    } else {
-      // Update display w/ latest value, if indicative -> full transition is not happening.
-      setDisplay({ value, color: '$neutral1' })
-    }
-  }, [
-    handleIndicativeTransition,
-    hasInput,
-    value,
-    valueChanged,
-    valueIsIndicative,
-    valueWasIndicative,
-    prevDisplay,
-    display,
-  ])
+    const color = valueIsIndicative ? '$neutral3' : '$neutral1'
 
-  // `usdValue` is not directly synced with `value` changes, so it is handled separately.
-  // Only update the displayed USD value when it's defined, or it's undefined and not loading.
-  useEffect(() => {
-    if (usdValue || !isLoading) {
-      setDisplayUsdValue(usdValue)
-    }
-  }, [usdValue, isLoading])
+    const display = { value, color, usdValue } as const
+    lastDisplayRef.current = display
 
-  // If the input is focused / being edited, pass through the original values and avoid indicative treatment.
-  if (focus) {
-    return { value, color: '$neutral1', usdValue }
-  }
-  return { ...display, usdValue: displayUsdValue }
+    return display
+  }, [focus, value, usdValue, hasInput, valueIsIndicative])
 }
 
 // TODO(WEB-4805): Remove once legacy hook once indicative quotes are fully rolled out and tested
